@@ -1,8 +1,10 @@
 # The cache handle and its opening and closing (design.md §3.1).
 
-# The smallest map libmdbx opens here; below it the engine refuses the
-# geometry with "Invalid argument".
-MAP_SIZE_MIN <- 2^18
+# The smallest map libmdbx opens on every CRAN platform. Its default lower
+# bound is 64 pages, so a map under 64 times the OS page size is refused with
+# "Invalid argument": 256 KiB with 4 KiB pages, 1 MiB with Apple Silicon's
+# 16 KiB pages.
+MAP_SIZE_MIN <- 2^20
 
 dazcache_state <- new.env(parent = emptyenv())
 dazcache_state$stage <- 0L
@@ -71,7 +73,7 @@ dazcache_state$stage <- 0L
 #'   process to open a cache sets this for everyone who opens it while it is
 #'   open.
 #' @param map_size The most the database file may grow to, in bytes: a whole
-#'   number of at least 256 KiB (`2^18`).
+#'   number of at least 1 MiB (`2^20`).
 #' @param cull_limit How many entries one eviction step removes at most, up
 #'   to `.Machine$integer.max`.
 #' @param timeout How long, in seconds, a write waits for another process's

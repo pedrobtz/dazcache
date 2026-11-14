@@ -197,10 +197,14 @@ as_utf8 <- function(x) {
 # script parsed in a C locale, say), read as UTF-8. enc2utf8() would instead
 # write R's display of the bytes, "<c3><a9>", in their place: in a key, a
 # different key in every such locale and the same key as the literal text
-# "<c3><a9>"; in a stored value, different text.
+# "<c3><a9>"; in a stored value, different text. A conversion counts only if
+# it converts back to the same bytes: Windows' iconv() maps bytes a C locale
+# cannot hold to a "best fit" ("é" to "C)") instead of failing.
 native_to_utf8 <- function(x) {
   out <- iconv(x, from = "", to = "UTF-8")
-  failed <- is.na(out)
+  back <- iconv(out, from = "UTF-8", to = "")
+  # Both sides are unmarked native strings, so `==` compares their bytes.
+  failed <- is.na(back) | back != x
   as_utf8 <- x[failed]
   Encoding(as_utf8) <- "UTF-8"
   out[failed] <- as_utf8
