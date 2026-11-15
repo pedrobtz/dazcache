@@ -67,7 +67,7 @@ process to open a cache sets this for everyone who opens it while it is
 open.}
 
 \item{map_size}{The most the database file may grow to, in bytes: a whole
-number of at least 256 KiB (\code{2^18}).}
+number of at least 1 MiB (\code{2^20}).}
 
 \item{cull_limit}{How many entries one eviction step removes at most, up
 to \code{.Machine$integer.max}.}

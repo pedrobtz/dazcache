@@ -166,6 +166,7 @@ One row per limit the package enforces. "Straddled by" is the test of
 | `BLOB_REAP_TIMEOUT` (5)                       | seconds                                                 | gap #90                                                                                                   |
 | key and tag rows against mdbx's key size      | bytes, at the smallest page size                        | tests/testthat/test-key.R "limits fit the smallest page size"; tests/testthat/test-engine.R (`keysize_max + 1`) |
 | mdbx's value size                             | bytes of one inline value                               | gap #91                                                                                                   |
+| `MAP_SIZE_MIN` (2^20)                         | bytes, 64 pages of 16 KiB                               | tests/testthat/test-cache.R: `2^20 - 1` refused, `2^20` opens (on 16 KiB-page macOS in the scheduled matrix) |
 | `map_size`                                    | bytes of `cache.mdbx`                                   | n/a: mdbx grows the map in steps, so no byte boundary can be aimed at; a full map is tested in test-maintain.R "a write that fills the map leaves the cache sound and usable" |
 | `display_key()` (80)                          | characters                                              | n/a: shortens keys in messages only, nothing stored or compared                                             |
 <!-- markdownlint-enable MD013 -->

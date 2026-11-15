@@ -435,6 +435,7 @@ test_that("every numeric and choice argument is refused in the taxonomy (#94, #1
     quote(cache(dir, cull_limit = 0.5)),
     quote(cache(dir, cull_limit = NA)),
     quote(cache(dir, map_size = 4096)),
+    quote(cache(dir, map_size = 2^20 - 1)),
     quote(cache(dir, map_size = 1e6 + 0.5)),
     quote(cache(dir, map_size = Inf)),
     quote(cache(dir, timeout = -1)),
@@ -459,7 +460,7 @@ test_that("every numeric and choice argument is refused in the taxonomy (#94, #1
     expect_error(eval(call), class = "dazcache_type_error", label = deparse(call))
   }
   expect_true(cache_is_open(local_cache(cull_limit = .Machine$integer.max)))
-  expect_true(cache_is_open(local_cache(map_size = 2^18)))
+  expect_true(cache_is_open(local_cache(map_size = 2^20)))
   t <- local_cache(timeout = Inf)
   cache_set(t, "k", 1)
   expect_identical(cache_get(t, "k"), 1)

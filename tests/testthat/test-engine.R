@@ -360,7 +360,10 @@ test_that("a close that fails still closes the handle and leaves the registry (#
 test_that("a deleted directory is not joined by a later open (#126)", {
   dir <- withr::local_tempdir()
   s <- cache(dir)
+  withr::defer(cache_close(s))
   unlink(dir, recursive = TRUE)
+  # Windows does not delete a file that is mapped, so there is nothing to join.
+  skip_if(file.exists(file.path(dir, "cache.mdbx")), "an open database file cannot be deleted here")
   expect_error(cache(dir), class = "dazcache_closed")
   cache_close(s)
   s2 <- cache(dir)
