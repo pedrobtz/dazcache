@@ -97,7 +97,7 @@ with_cache(dir, fn, ...)
 - map_size:
 
   The most the database file may grow to, in bytes: a whole number of at
-  least 256 KiB (`2^18`).
+  least 1 MiB (`2^20`).
 
 - cull_limit:
 
