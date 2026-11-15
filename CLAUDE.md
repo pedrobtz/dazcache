@@ -24,10 +24,16 @@ interop and `cache_check()`. CI is the R-CMD-check, coverage and pkgdown workflo
   identifiers). **Deferred**; it sits above the cache and is built after it.
 - **`.agents/assurance.md`** — what checks each boundary, long-lived object and limit
   against an answer, and the `assurance` issue for every gap. The standard is
-  `.claude/shared/assurance.md`; CI's `assurance` workflow holds the file to it. A change
+  the shared `assurance.md` rules; CI's `assurance` workflow holds the file to it. A change
   that adds a boundary, object or limit adds its row.
+<!-- r-skills: shared-rules -->
 
-@.claude/shared/assurance.md
+The portfolio's shared rules (`workflow`, `r-package`, `ci`, `native-code`,
+`correctness`, `assurance`) come from the
+[r-skills](https://github.com/pedrobtz/r-skills) plugin's `rules/`, loaded at
+session start because of the marker above. Never copy them here. Where this
+file and a shared rule disagree, this file wins for this package. Cloud
+sessions do not load the plugin and run without them.
 
 **Read `design.md` §0 first.** Earlier drafts (an R6-based first contract, its review, a
 functional-API proposal, a typed-store design and plan) were folded into these on
