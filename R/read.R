@@ -325,6 +325,7 @@ store_decode_entry <- function(s, hit, key, call = rlang::caller_env()) {
       hit$bytes,
       record$codec_meta,
       stage = function() stage_path(s),
+      key = key$text,
       call = call
     )))
   }
@@ -347,7 +348,7 @@ store_decode_entry <- function(s, hit, key, call = rlang::caller_env()) {
     warnings <- list()
     value <- tryCatch(
       withCallingHandlers(
-        list(codec_decode(codec, hit$path, record$codec_meta, call = call)),
+        list(codec_decode(codec, hit$path, record$codec_meta, key = key$text, call = call)),
         # Held back: a failed attempt's "cannot open file" is noise, but a
         # successful decode's warnings are the caller's to see.
         warning = function(cnd) {

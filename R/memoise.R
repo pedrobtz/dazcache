@@ -25,6 +25,13 @@
 #' full or it is read-only, the result is returned anyway, with a warning of
 #' class `dazcache_memoise_unstored`. A codec that cannot store it is an error.
 #'
+#' Inside [cache_transact()], a memoised call joins the transaction: a result
+#' computed there is kept only if the block commits, and `f` runs while the
+#' block holds the cache's write lock. Keep slow producers out of blocks. A
+#' producer that hands its work to another process writing the same cache, such
+#' as a `callr` or `mirai` worker, makes that process wait for the lock, and it
+#' fails with a `dazcache_busy` error after its `timeout`.
+#'
 #' A result stored as a file, with `codec = codec_file()`, is the path of the
 #' cached file on a miss as on a hit, not the path `f` returned.
 #'

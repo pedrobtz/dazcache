@@ -387,6 +387,25 @@ test_that("cache_evict() removes more entries than one scan holds", {
   expect_identical(store_violations(s), character())
 })
 
+test_that("prefix and tag scans are exact one under, at and one over a scan chunk (#130)", {
+  for (n in ENGINE_SCAN_CHUNK + c(-1L, 0L, 1L)) {
+    s <- local_cache()
+    keys <- sprintf("p%05d", seq_len(n))
+    cache_mset(s, stats::setNames(as.list(seq_len(n)), keys), tags = "t")
+    # Sorts just after every "p" key, so a scan that misses its stop reads it.
+    cache_set(s, "q", 0, tags = "u")
+    expect_identical(cache_keys(s, prefix = "p"), keys)
+    expect_identical(cache_entries(s, prefix = "p")$key, keys)
+    expect_setequal(cache_entries(s, tag = "t")$key, keys)
+    cache_evict(s, tag = "t")
+    expect_identical(cache_keys(s), "q")
+    cache_mset(s, stats::setNames(as.list(seq_len(n)), keys))
+    cache_evict(s, prefix = "p")
+    expect_identical(cache_keys(s), "q")
+    expect_identical(store_violations(s), character())
+  }
+})
+
 test_that("cache_evict() by tag ends on tag rows whose entries are gone", {
   s <- local_cache()
   e <- s$engine

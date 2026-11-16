@@ -52,7 +52,7 @@ available.}
 \item{inline_max}{Values whose encoding is smaller than this many bytes are
 kept inside the database; the rest, from exactly \code{inline_max} bytes up,
 become files. Counters are always kept inside, even with \code{inline_max = 0}.
-Stored with the cache.}
+At most 1 MiB (\code{2^20}). Stored with the cache.}
 
 \item{codec}{The default codec for writes; see \code{\link[=codec]{codec()}}. Stored with the
 cache, by name.}

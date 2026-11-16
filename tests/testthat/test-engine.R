@@ -393,3 +393,19 @@ test_that("handles from before an unload say they are closed, and closing one sp
   }, args = list(dir = dir))
   expect_identical(got, list(FALSE, "dazcache_closed", 1))
 })
+
+test_that("an error or interrupt in a read transaction leaves no transaction (#79)", {
+  s <- local_cache()
+  e <- s$engine
+  expect_error(engine_read(e, function(txn) stop("x")), "x")
+  expect_null(e$txn)
+  cache_set(s, "a", 1)
+  interrupted <- tryCatch(
+    engine_read(e, function(txn) rlang::interrupt()),
+    interrupt = function(cnd) TRUE
+  )
+  expect_true(interrupted)
+  expect_null(e$txn)
+  cache_set(s, "b", 2)
+  expect_identical(cache_mget(s, c("a", "b")), list(a = 1, b = 2))
+})

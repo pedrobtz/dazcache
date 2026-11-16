@@ -6,6 +6,12 @@
 # 16 KiB pages.
 MAP_SIZE_MIN <- 2^20
 
+# The largest `inline_max`. libmdbx refuses a value over about 2 GiB
+# (MDBX_MAXDATASIZE), and a value of a few MiB inside the map already costs
+# more than a file: every copy-on-write page it spans is rewritten with it.
+# Raising the cap later is harmless; lowering it would refuse existing stores.
+INLINE_MAX_LIMIT <- 2^20
+
 dazcache_state <- new.env(parent = emptyenv())
 dazcache_state$stage <- 0L
 
@@ -62,7 +68,7 @@ dazcache_state$stage <- 0L
 #' @param inline_max Values whose encoding is smaller than this many bytes are
 #'   kept inside the database; the rest, from exactly `inline_max` bytes up,
 #'   become files. Counters are always kept inside, even with `inline_max = 0`.
-#'   Stored with the cache.
+#'   At most 1 MiB (`2^20`). Stored with the cache.
 #' @param codec The default codec for writes; see [codec()]. Stored with the
 #'   cache, by name.
 #' @param codecs A list of your own codecs, made with [codec()], that this
@@ -148,7 +154,7 @@ cache <- function(
       call = call
     )
   }
-  check_number(inline_max, "inline_max", min = 0, whole = TRUE)
+  check_number(inline_max, "inline_max", min = 0, max = INLINE_MAX_LIMIT, whole = TRUE)
   if (!is_codec(codec)) {
     abort_codec_error(
       "`codec` must be a codec, such as `codec_auto()` or one made with `codec()`.",

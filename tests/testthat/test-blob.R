@@ -399,6 +399,32 @@ test_that("a missing or wrong-length inline value is damage, never a value (#113
   }
 })
 
+test_that("inline bytes of the right length that do not decode are a codec error naming the key (#73)", {
+  s <- local_cache()
+  e <- s$engine
+  value <- list(a = 1:3, b = "x")
+  garbage <- list(zeros = function(b) raw(length(b)), reversed = rev, random = function(b) {
+    withr::with_seed(1, as.raw(sample(0:255, length(b), replace = TRUE)))
+  })
+  for (g in names(garbage)) cache_set(s, g, value)
+  engine_write(e, function(txn) {
+    db <- engine_db(e, "values")
+    for (g in names(garbage)) engine_put(txn, db, g, garbage[[g]](engine_get(txn, db, g)))
+  })
+  for (g in names(garbage)) {
+    cnd <- expect_error(cache_get(s, g, default = "D"), class = "dazcache_codec_error")
+    expect_identical(cnd$key, g)
+    expect_match(conditionMessage(cnd), sprintf("key \"%s\"", g), fixed = TRUE)
+    expect_error(cache_mget(s, g), class = "dazcache_codec_error")
+    expect_true(cache_has(s, g))
+  }
+  # A pop deletes before it decodes, as no codec runs inside a transaction, so
+  # bytes that fail to decode are found only once the entry is gone.
+  expect_error(cache_pop(s, "zeros", default = "D"), class = "dazcache_codec_error")
+  expect_false(cache_has(s, "zeros"))
+  expect_identical(store_violations(s), character())
+})
+
 test_that("writing the same bytes replaces a damaged blob (#114)", {
   s <- local_cache(inline_max = 100)
   x <- runif(100)
