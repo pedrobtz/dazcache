@@ -1,8 +1,9 @@
 ---
-title: "Getting started with dazcache"
+title: "Get started with dazcache"
+description: "Store, find and expire values in a cache every R process can share."
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting started with dazcache}
+  %\VignetteIndexEntry{Get started with dazcache}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -11,152 +12,163 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-dazcache keeps R values on disk, under keys, for as long as you want them and no
-longer. A cache is a directory: open it, read and write it, and every R process on the
-machine that opens the same directory sees the same entries.
-
 ```{r}
 library(dazcache)
-
-dir <- file.path(tempdir(), "getting-started")
-s <- cache(dir)
-s
 ```
 
-## Reading and writing
+We will build a small cache of market prices: store quotes under keys, find them
+again, let them expire, drop a group of them at once, and memoise the slow function
+that fetches them. By the end you will know the handful of functions most code needs.
+Running a cache across many processes, and how it is stored, are left to the articles
+listed at the end.
 
-`cache_set()` stores a value under a key and returns the cache, so writes chain.
-`cache_get()` reads it back.
+## Open a cache
+
+A **cache** is a directory. `cache()` opens it, creating it if needed, and every R
+process on the machine that opens the same directory sees the same entries. Its
+handle, `s` here, is what every other function takes first.
+
+```{r}
+dir <- file.path(tempdir(), "prices")
+s <- cache(dir)
+```
+
+## Store and read values
+
+`cache_set()` stores a value under a **key** and returns the cache, so writes chain.
+`cache_get()` reads a value back.
 
 ```{r}
 s |>
-  cache_set("greeting", "hello") |>
-  cache_set("numbers", 1:10)
+  cache_set("XSWX/2026-08-28", c(100.8, 101.4)) |>
+  cache_set("XSWX/2026-08-29", c(101.2, 101.9))
 
-cache_get(s, "numbers")
+cache_get(s, "XSWX/2026-08-29")
 ```
 
-A key with no entry is an error, unless you supply a `default`. A stored `NULL` is a
-value like any other, so the two never get confused.
+Asking for a key that has no entry is the mistake you will make first. It is an error,
+so a missing value never passes for a real one:
 
-```{r}
-try(cache_get(s, "absent"))
-cache_get(s, "absent", default = NA)
-cache_has(s, c("greeting", "absent"))
+```{r, error = TRUE}
+cache_get(s, "XNYS/2026-08-29")
 ```
 
-`cache_mget()` and `cache_mset()` read and write several entries at once, and
-`cache_delete()` removes entries.
+Supply `default` when a miss is expected, or ask with `cache_has()` first. A stored
+`NULL` is a value like any other, so the two never get confused.
 
 ```{r}
-cache_mset(s, list(a = 1, b = 2))
-cache_mget(s, c("a", "b"))
-cache_delete(s, c("a", "b"))
+cache_get(s, "XNYS/2026-08-29", default = NULL)
+cache_has(s, c("XSWX/2026-08-29", "XNYS/2026-08-29"))
 ```
 
-## Keys
+## Choose keys
 
-A string is its own key, so a `"group/item"` convention gives you prefixes to list by:
+A string is its own key, and a `"group/item"` convention gives you prefixes to list by:
 
 ```{r}
-cache_set(s, "prices/XSWX", 101.2)
-cache_set(s, "prices/XNYS", 57.8)
-cache_keys(s, prefix = "prices/")
+cache_keys(s, prefix = "XSWX/")
 ```
 
-A key can also be a number, a date, a vector or a named list. It is written in a fixed
-text encoding: names are sorted, `1L` and `1` agree, and a time zone is not part of a
-time's identity, so the same values always find the same entry.
+A key can also be a number, a date or a named list. The same values always find the
+same entry, whatever order the fields are written in:
 
 ```{r}
-cache_set(s, list(exchange = "XSWX", date = as.Date("2026-08-29")), "quotes")
-cache_get(s, list(date = as.Date("2026-08-29"), exchange = "XSWX"))
-cache_key_chr(list(exchange = "XSWX", date = as.Date("2026-08-29")))
+cache_set(s, list(exchange = "XNYS", date = as.Date("2026-08-29")), c(57.8, 58.1))
+cache_get(s, list(date = as.Date("2026-08-29"), exchange = "XNYS"))
 ```
 
-## Expiry and tags
+## Expire and drop entries
 
-An entry can expire: after a number of seconds, a `difftime`, or at a `POSIXct` time. An
-expired entry is gone for every reader at once.
+An entry can **expire**: after a number of seconds, a `difftime`, or at a `POSIXct`
+time. An expired entry is gone for every reader at once. Here, an intraday quote is
+good for an hour, and one with `expire = 0` is gone as soon as it is written:
 
 ```{r}
-cache_set(s, "session-token", "abc123", expire = as.difftime(30, units = "mins"))
-cache_set(s, "stale", 1, expire = 0)
-cache_has(s, "stale")
+cache_set(s, "XSWX/live", 101.6, expire = as.difftime(1, units = "hours"))
+cache_set(s, "XSWX/stale", 101.5, expire = 0)
+cache_has(s, c("XSWX/live", "XSWX/stale"))
 ```
 
-Tags group entries for invalidation. Tag everything derived from one source, and drop
-it all when that source changes:
+**Tags** group entries for invalidation. Tag the quotes that came from one feed, and
+drop them all when that feed turns out to be wrong:
 
 ```{r}
-cache_set(s, "report/q3", "...", tags = "ledger")
-cache_set(s, "report/q4", "...", tags = "ledger")
-cache_evict(s, tag = "ledger")
-cache_keys(s, prefix = "report/")
+cache_set(s, "XLON/2026-08-28", 7.41, tags = "feed-b")
+cache_set(s, "XLON/2026-08-29", 7.44, tags = "feed-b")
+cache_evict(s, tag = "feed-b")
+cache_keys(s, prefix = "XLON/")
 ```
 
-## Memoising a function
+## Memoise a function
 
-`cache_memoise()` wraps a function so that each call is looked up first and computed
-only on a miss. The results outlive the session, and every process using the cache
-shares them.
+Most quotes come from somewhere slow. `cache_memoise()` wraps a function so that each
+call is looked up first and computed only on a miss. The results outlive the session,
+and every process using the cache shares them. The second call below reads the first
+call's result:
 
 ```{r}
-slow_mean <- function(n, seed = 1) {
+fetch_quotes <- function(exchange, date) {
   Sys.sleep(0.5)
-  set.seed(seed)
-  mean(rnorm(n))
+  set.seed(as.integer(date))
+  round(runif(2, 50, 150), 1)
 }
-fast_mean <- cache_memoise(slow_mean, s)
+quotes <- cache_memoise(fetch_quotes, s)
 
-system.time(fast_mean(1e5))
-system.time(fast_mean(1e5))
+system.time(quotes("XTKS", as.Date("2026-08-29")))
+system.time(quotes("XTKS", as.Date("2026-08-29")))
 ```
 
-A call is keyed on the function's name and its arguments, with defaults filled in, so
-`fast_mean(1e5)` and `fast_mean(1e5, seed = 1)` are the same entry. The key does not
-depend on the function's code: when its meaning changes, pass a new `version`.
+A call is keyed on the function's name, here `fetch_quotes`, the name it was passed
+as, and on its arguments. The key does not depend on the function's code: when the
+function changes meaning, give it a new `version`, and its calls get new keys.
 
 ```{r}
-cache_memoise_key(fast_mean, 1e5)
-cache_forget(fast_mean, 1e5)
+cache_memoise_key(quotes, "XTKS", as.Date("2026-08-29"))
+quotes <- cache_memoise(fetch_quotes, s, version = 2)
+cache_memoise_key(quotes, "XTKS", as.Date("2026-08-29"))
 ```
 
-## Large values
+## Large values and the catalogue
 
-Values of `inline_max` bytes (32 KiB) or more are stored as read-only files, named by
-the hash of their content, so identical values are stored once. `cache_path()` gives
-the file, for tools that read it in place.
-
-![A small value lives inside its record in `cache.mdbx`; a large one becomes a file in
-`blobs/` that the record points at.](storage.svg){width=100%}
-
-The cache's directory holds the database, its lock file, the files and a staging area:
-
-```text
-getting-started/
-├── cache.mdbx        every record and index
-├── cache.mdbx-lck    the lock that coordinates processes
-├── blobs/b7/b795…3745.rds
-└── tmp/              files being written, before they are published
-```
+A year of ticks is too large to keep inside the database. A value of 32 KiB or more
+(`inline_max`) is stored as a read-only RDS file, and `cache_path()` gives that file to
+tools that read it in place:
 
 ```{r}
-big <- runif(1e5)
-cache_set(s, "big", big)
-path <- cache_path(s, "big")
-file.size(path)
-identical(readRDS(path), big)
+ticks <- runif(1e5, 100, 102)
+cache_set(s, "XSWX/2026/ticks", ticks)
+path <- cache_path(s, "XSWX/2026/ticks")
+identical(readRDS(path), ticks)
 ```
 
-## Looking inside
+`cache_entries()` lists what the cache holds as a data frame: each key, its size in
+bytes as stored, whether it lives inside the database, and when it expires. A key that
+is not a string is listed by its text form, which
+[How a cache stores keys and values](https://pedrobtz.github.io/dazcache/articles/storage.html)
+explains.
 
 ```{r}
 cache_entries(s)[, c("key", "bytes", "inline", "expires")]
-cache_stats(s)[, c("count", "bytes_inline", "bytes_blob", "volume")]
 ```
+
+When you are done, close the cache. Its entries stay on disk for the next process.
 
 ```{r}
 cache_close(s)
+```
+
+```{r, include = FALSE}
 unlink(dir, recursive = TRUE)
 ```
+
+## Where next
+
+- [Cache slow work](https://pedrobtz.github.io/dazcache/articles/caching-slow-work.html):
+  memoise a slow function across sessions, keep downloaded files, and use the cache from
+  memoise and Shiny.
+- [Operating a shared cache](https://pedrobtz.github.io/dazcache/articles/shared-cache.html):
+  many processes, transactions, durability, size limits and repair.
+- [How a cache stores keys and values](https://pedrobtz.github.io/dazcache/articles/storage.html):
+  the directory, the files and the key encoding.
+- [Reference](https://pedrobtz.github.io/dazcache/reference/): every function, with its
+  arguments.

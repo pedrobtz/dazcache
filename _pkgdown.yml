@@ -3,11 +3,14 @@ template:
   bootstrap: 5
 
 articles:
-- title: Articles
+- title: Guides
+  navbar: ~
   contents:
-  - dazcache
-  - caching-slow-work
-  - shared-cache
+  - articles/caching-slow-work
+  - articles/shared-cache
+- title: Concepts
+  contents:
+  - articles/storage
 
 reference:
 - title: Open and close
