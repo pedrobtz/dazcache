@@ -1,10 +1,6 @@
 ---
 title: "Operating a shared cache"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Operating a shared cache}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+description: "Run one cache across sessions, jobs and workers: processes, transactions, durability, size limits and repair."
 ---
 
 ```{r, include = FALSE}
@@ -118,8 +114,9 @@ A process that dies in the middle of a write can leave, at most, a file that not
 refers to. On Linux and Windows the write lock it held is released at once. On macOS
 it is not, a limitation of the storage engine there: reads carry on, but every write
 raises `dazcache_busy` until every process with the cache open has closed it; the next
-process to open it then recovers the lock. `cache_check()` finds that, and any other damage. `repair = TRUE` fixes it,
-and `hash = TRUE` also verifies every stored file's content.
+process to open it then recovers the lock. `cache_check()` finds that, and any other
+damage. `repair = TRUE` fixes it, and `hash = TRUE` also verifies every stored file's
+content.
 
 ```{r}
 cache_check(s)
@@ -130,5 +127,11 @@ Run it now and then from a maintenance job, as you would `cache_cull()`.
 
 ```{r}
 cache_close(s)
+```
+
+```{r, include = FALSE}
 unlink(dir, recursive = TRUE)
 ```
+
+Next: [How a cache stores keys and values](storage.html), for what is in the directory
+these processes share.

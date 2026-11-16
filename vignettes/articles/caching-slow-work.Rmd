@@ -1,10 +1,6 @@
 ---
-title: "Caching slow work"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Caching slow work}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+title: "Cache slow work"
+description: "Memoise a slow function across sessions, keep the files it downloads, and use the cache from memoise and Shiny."
 ---
 
 ```{r, include = FALSE}
@@ -155,5 +151,11 @@ system.time(fast_square(12))
 
 ```{r}
 cache_close(s)
+```
+
+```{r, include = FALSE}
 unlink(dir, recursive = TRUE)
 ```
+
+Next: [Operating a shared cache](shared-cache.html), for running this across many
+processes at once.
