@@ -33,7 +33,15 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="articles/dazcache.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
-<li class="nav-item"><a class="nav-link" href="articles/index.html">Articles</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/caching-slow-work.html">Cache slow work</a></li>
+    <li><a class="dropdown-item" href="articles/shared-cache.html">Operating a shared cache</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="articles/index.html">More articles...</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -53,7 +61,12 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>dazcache is a persistent disk cache that every R process on a machine can share, in the style of Python’s <a href="https://github.com/grantjenks/python-diskcache" class="external-link">diskcache</a>. Keys map to values that outlive the session, expire on a clock, carry tags for bulk invalidation, and are evicted when the cache grows past a size limit. Small values live in a transactional <a href="https://libmdbx.dqdkfa.ru/" class="external-link">libmdbx</a> database, through the <a href="https://github.com/pedrobtz/mdbx" class="external-link">mdbx</a> package; larger ones become read-only files named by their content, stored once however many keys hold them.</p>
+<p>dazcache is a persistent disk cache that every R process on one machine can share: values outlive the session, expire, carry tags and stay under a size limit.</p>
+<ul>
+<li>Sessions, scheduled jobs and parallel workers use one cache at once, over a local filesystem. Reads never wait, and each write is atomic, alone or in a transaction. It is built on <a href="https://libmdbx.dqdkfa.ru/" class="external-link">libmdbx</a>, through the <a href="https://github.com/pedrobtz/mdbx" class="external-link">mdbx</a> package.</li>
+<li>A key can be a string, a date, a named list or a mix of these, written in a fixed text encoding, so the same values find the same entry in every session.</li>
+<li>Values of 32 KiB or more (by default) become read-only RDS files named by their content, stored once however many keys hold them, and readable in place by other tools.</li>
+</ul>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -65,61 +78,38 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"pedrobtz/dazcache"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="a-tour">A tour<a class="anchor" aria-label="anchor" href="#a-tour"></a>
+<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
+<p>A cache is a directory. Open one, store a value for an hour (3600 seconds), and read it back:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://pedrobtz.github.io/dazcache/">dazcache</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cache.html">cache</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"prices"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Keys map to values, with expiry and tags.</span></span>
-<span><span class="va">s</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/cache_set.html">cache_set</a></span><span class="op">(</span><span class="st">"XSWX/2026-08-29"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101.2</span>, <span class="fl">101.9</span><span class="op">)</span>, expire <span class="op">=</span> <span class="fl">3600</span>, tags <span class="op">=</span> <span class="st">"XSWX"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/cache_set.html">cache_set</a></span><span class="op">(</span><span class="va">s</span>, <span class="st">"XSWX/2026-08-29"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101.2</span>, <span class="fl">101.9</span><span class="op">)</span>, expire <span class="op">=</span> <span class="fl">3600</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/cache_get.html">cache_get</a></span><span class="op">(</span><span class="va">s</span>, <span class="st">"XSWX/2026-08-29"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 101.2 101.9</span></span>
-<span><span class="fu"><a href="reference/cache_get.html">cache_get</a></span><span class="op">(</span><span class="va">s</span>, <span class="st">"missing"</span>, default <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
-<span><span class="co">#&gt; NULL</span></span>
-<span></span>
-<span><span class="co"># A key can be any combination of values; field order does not matter.</span></span>
-<span><span class="fu"><a href="reference/cache_set.html">cache_set</a></span><span class="op">(</span><span class="va">s</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>exchange <span class="op">=</span> <span class="st">"XSWX"</span>, date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2026-08-29"</span><span class="op">)</span><span class="op">)</span>, <span class="st">"quotes"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/cache_get.html">cache_get</a></span><span class="op">(</span><span class="va">s</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2026-08-29"</span><span class="op">)</span>, exchange <span class="op">=</span> <span class="st">"XSWX"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "quotes"</span></span>
-<span></span>
-<span><span class="co"># A function, cached across sessions and processes.</span></span>
-<span><span class="va">slow_square</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span>  <span class="va">x</span><span class="op">^</span><span class="fl">2</span></span>
-<span><span class="op">}</span></span>
-<span><span class="va">square</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cache_memoise.html">cache_memoise</a></span><span class="op">(</span><span class="va">slow_square</span>, <span class="va">s</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="fu">square</span><span class="op">(</span><span class="fl">12</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.003   0.000   1.034</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="fu">square</span><span class="op">(</span><span class="fl">12</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    user  system elapsed </span></span>
-<span><span class="co">#&gt;   0.000   0.000   0.001</span></span>
-<span></span>
-<span><span class="co"># The catalogue is a data frame.</span></span>
-<span><span class="fu"><a href="reference/cache_entries.html">cache_entries</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"key"</span>, <span class="st">"bytes"</span>, <span class="st">"codec"</span>, <span class="st">"expires"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;                                   key bytes codec             expires</span></span>
-<span><span class="co">#&gt; 1                     XSWX/2026-08-29    47   rds 2026-09-29 19:59:14</span></span>
-<span><span class="co">#&gt; 2             slow_square/v1/{x=i:12}    39   rds                &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 3 {date=d:2026-08-29,exchange=s:XSWX}     6   raw                &lt;NA&gt;</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/cache.html">cache_close</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="where-it-works">Where it works<a class="anchor" aria-label="anchor" href="#where-it-works"></a>
-</h2>
-<p>Many R processes on <strong>one machine</strong>, over a <strong>local filesystem</strong>: interactive sessions, scheduled jobs and parallel workers can use one cache at once. Reads never wait; writes take turns. A cache on a network filesystem (NFS, SMB, cloud file shares) is not supported, because its locks cannot be relied on.</p>
-<p>A cache cannot be carried into a forked child such as a <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> worker: open it inside the worker.</p>
+<span><span class="co">#&gt; [1] 101.2 101.9</span></span></code></pre></div>
+<p>A key with no entry is an error, unless you say what to return instead:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/cache_get.html">cache_get</a></span><span class="op">(</span><span class="va">s</span>, <span class="st">"XNYS/2026-08-29"</span>, default <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="co">#&gt; NULL</span></span></code></pre></div>
+<p>dazcache also memoises functions, drops entries by tag and checks itself for damage; <a href="https://pedrobtz.github.io/dazcache/articles/dazcache.html">Get started</a> shows how.</p>
 </div>
 <div class="section level2">
 <h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
 </h2>
 <ul>
-<li><a href="https://pedrobtz.github.io/dazcache/articles/dazcache.html">Getting started</a></li>
-<li><a href="https://pedrobtz.github.io/dazcache/articles/shared-cache.html">Operating a shared cache</a></li>
-<li><a href="https://pedrobtz.github.io/dazcache/reference/">Reference</a></li>
+<li>
+<a href="https://pedrobtz.github.io/dazcache/articles/dazcache.html">Get started</a>: keys, expiry, tags, memoising and large values, through one example.</li>
+<li>
+<a href="https://pedrobtz.github.io/dazcache/articles/caching-slow-work.html">Cache slow work</a>: memoise a slow function, keep the files it downloads, and use the cache from memoise and Shiny.</li>
+<li>
+<a href="https://pedrobtz.github.io/dazcache/articles/shared-cache.html">Operating a shared cache</a>: many processes, transactions, durability, size limits and repair.</li>
+<li>
+<a href="https://pedrobtz.github.io/dazcache/articles/storage.html">How a cache stores keys and values</a>: the directory, the files and the key encoding.</li>
+<li>
+<a href="https://pedrobtz.github.io/dazcache/reference/">Reference</a>: every function.</li>
 </ul>
+<p>dazcache follows the design of Python’s <a href="https://github.com/grantjenks/python-diskcache" class="external-link">diskcache</a>; for a cache that lives only in one session’s memory, <code>cache_mem()</code> from <a href="https://cachem.r-lib.org/" class="external-link">cachem</a> is lighter.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

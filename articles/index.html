@@ -17,7 +17,13 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/dazcache.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/caching-slow-work.html">Cache slow work</a></li>
+    <li><a class="dropdown-item" href="../articles/shared-cache.html">Operating a shared cache</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -34,17 +40,23 @@
     </div>
 
     <div class="section ">
-      <h3>Articles</h3>
+      <h3>Guides</h3>
       <div class="section-desc"></div>
 
-      <dl><dt><a href="dazcache.html">Getting started with dazcache</a></dt>
-        <dd>
-        </dd><dt><a href="caching-slow-work.html">Caching slow work</a></dt>
-        <dd>
+      <dl><dt><a href="caching-slow-work.html">Cache slow work</a></dt>
+        <dd><p>Memoise a slow function across sessions, keep the files it downloads, and use the cache from memoise and Shiny.</p>
         </dd><dt><a href="shared-cache.html">Operating a shared cache</a></dt>
-        <dd>
+        <dd><p>Run one cache across sessions, jobs and workers: processes, transactions, durability, size limits and repair.</p>
       </dd></dl></div>
-  </main></div>
+    <div class="section ">
+      <h3>Concepts</h3>
+      <div class="section-desc"></div>
+
+      <dl><dt><a href="storage.html">How a cache stores keys and values</a></dt>
+        <dd><p>What is in a cache’s directory, where each value goes, and how a key is written.</p>
+      </dd></dl></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

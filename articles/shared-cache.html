@@ -11,6 +11,8 @@
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Operating a shared cache">
+<meta name="description" content="Run one cache across sessions, jobs and workers: processes, transactions, durability, size limits and repair.">
+<meta property="og:description" content="Run one cache across sessions, jobs and workers: processes, transactions, durability, size limits and repair.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -31,7 +33,15 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/dazcache.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="../articles/caching-slow-work.html">Cache slow work</a></li>
+    <li><a class="dropdown-item" href="../articles/shared-cache.html">Operating a shared cache</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -55,7 +65,7 @@
       <h1>Operating a shared cache</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/dazcache/blob/main/vignettes/shared-cache.Rmd" class="external-link"><code>vignettes/shared-cache.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/dazcache/blob/main/vignettes/articles/shared-cache.Rmd" class="external-link"><code>vignettes/articles/shared-cache.Rmd</code></a></small>
       <div class="d-none name"><code>shared-cache.Rmd</code></div>
     </div>
 
@@ -191,8 +201,9 @@ verifies every stored file’s content.</p>
 <p>Run it now and then from a maintenance job, as you would
 <code><a href="../reference/cache_cull.html">cache_cull()</a></code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/cache.html">cache_close</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/cache.html">cache_close</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span></code></pre></div>
+<p>Next: <a href="storage.html">How a cache stores keys and values</a>,
+for what is in the directory these processes share.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

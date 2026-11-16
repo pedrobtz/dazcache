@@ -163,5 +163,8 @@ Run it now and then from a maintenance job, as you would
 ``` r
 
 cache_close(s)
-unlink(dir, recursive = TRUE)
 ```
+
+Next: [How a cache stores keys and
+values](https://pedrobtz.github.io/dazcache/articles/storage.md), for
+what is in the directory these processes share.

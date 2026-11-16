@@ -1,4 +1,4 @@
-# Caching slow work
+# Cache slow work
 
 Most code that wants a cache has the same shape: a function that is
 slow, called again with arguments it has seen before, by more than one
@@ -47,7 +47,7 @@ rates <- cache_memoise(
 
 system.time(rates("CHF", as.Date("2026-10-30")))
 #>    user  system elapsed 
-#>   0.004   0.000   0.506
+#>   0.003   0.001   0.506
 system.time(rates("CHF", as.Date("2026-10-30")))
 #>    user  system elapsed 
 #>   0.001   0.000   0.001
@@ -178,11 +178,14 @@ system.time(fast_square(12))
 #>   0.002   0.000   0.503
 system.time(fast_square(12))
 #>    user  system elapsed 
-#>   0.009   0.001   0.010
+#>   0.011   0.000   0.011
 ```
 
 ``` r
 
 cache_close(s)
-unlink(dir, recursive = TRUE)
 ```
+
+Next: [Operating a shared
+cache](https://pedrobtz.github.io/dazcache/articles/shared-cache.md),
+for running this across many processes at once.
