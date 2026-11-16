@@ -4,14 +4,17 @@ This is the first submission of dazcache.
 
 ## Test environments
 
-* local: macOS (aarch64), R 4.6.1
-* GitHub Actions, macos-latest: R release
-* GitHub Actions, windows-latest: R release
-* GitHub Actions, ubuntu-latest: R release and R oldrel-1 (4.5)
-* GitHub Actions, R-hub containers: R-devel on Debian/Ubuntu with clang and gcc
-  (`clang23`, `ubuntu-clang`, `ubuntu-gcc16`)
-* GitHub Actions, ubuntu-latest: R release with no Suggests installed
-  (CRAN's noSuggests flavor)
+* local: macOS (aarch64), R 4.6.1, `R CMD check --as-cran` on the source
+  tarball
+* GitHub Actions (pedrobtz/r-actions `r-cmd-check.yml`), all with `--as-cran`:
+  * macOS, Windows and Ubuntu (latest): R release
+  * Windows (latest): R-devel
+  * Ubuntu (latest): R oldrel-1 (4.5), the declared minimum
+  * R-hub containers `clang23`, `ubuntu-clang` and `ubuntu-gcc16`: R-devel
+    with CRAN's compilers
+  * R-hub `nosuggests` container: R-devel with only the hard dependencies
+    installed (CRAN's noSuggests flavor)
+  * R-hub `nold` container: R-devel without long doubles (CRAN's noLD flavor)
 * GitHub Actions (pedrobtz/r-actions `cran-special.yml`): CRAN's `rlibro`
   and `vnu` checks
 
