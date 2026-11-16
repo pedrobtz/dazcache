@@ -376,3 +376,66 @@ test_that("an aborted block reaps the blobs it published, and keeps those a surv
   )
   expect_identical(length(list.files(file.path(s$dir, "blobs"), recursive = TRUE)), n)
 })
+
+test_that("a memoised call in a block joins it: kept on commit, dropped on abort (#104)", {
+  s <- local_cache()
+  calls <- 0L
+  sq <- cache_memoise(function(x) {
+    calls <<- calls + 1L
+    x^2
+  }, s, name = "sq")
+  out <- cache_transact(s, c(sq(3), sq(3)))
+  expect_identical(out, c(9, 9))
+  expect_identical(calls, 1L)
+  expect_true(cache_has(s, cache_memoise_key(sq, 3)))
+
+  expect_error(
+    cache_transact(s, {
+      sq(4)
+      abort_type_error("abort")
+    }),
+    class = "dazcache_type_error"
+  )
+  expect_identical(calls, 2L)
+  expect_false(cache_has(s, cache_memoise_key(sq, 4)))
+  expect_null(s$engine$txn)
+})
+
+test_that("a producer in a block whose worker writes the same cache gets dazcache_busy (#104)", {
+  skip_unless_children_see_this_build()
+  skip_on_cran()
+  dir <- withr::local_tempdir()
+  s <- cache(dir)
+  withr::defer(cache_close(s))
+  via_worker <- cache_memoise(function(x) {
+    callr::r(function(dir, x) {
+      w <- dazcache::cache(dir, timeout = 0.3)
+      on.exit(dazcache::cache_close(w))
+      dazcache::cache_set(w, "worker", x)
+      x
+    }, args = list(dir = dir, x = x))
+  }, s, name = "via_worker")
+  cnd <- tryCatch(cache_transact(s, via_worker(1)), error = function(cnd) cnd)
+  expect_s3_class(cnd, "callr_error")
+  expect_s3_class(cnd$parent, "dazcache_busy")
+  expect_false(cache_has(s, "worker"))
+})
+
+test_that("an interrupt in a block aborts it and leaves no transaction (#79)", {
+  s <- local_cache()
+  cache_set(s, "a", "before")
+  interrupted <- tryCatch(
+    cache_transact(s, {
+      cache_set(s, "a", "after")
+      cache_set(s, "b", 1)
+      rlang::interrupt()
+    }),
+    interrupt = function(cnd) TRUE
+  )
+  expect_true(interrupted)
+  expect_null(s$engine$txn)
+  expect_identical(cache_get(s, "a"), "before")
+  expect_false(cache_has(s, "b"))
+  cache_set(s, "c", 1)
+  expect_identical(cache_get(s, "c"), 1)
+})

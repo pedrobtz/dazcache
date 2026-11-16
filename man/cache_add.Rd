@@ -56,7 +56,10 @@ processes calling \code{cache_incr()} on one key produce eight increments.
 \itemize{
 \item \code{cache_add()} writes only if the key has no entry, and returns whether it
 did. An expired entry counts as none.
-\item \code{cache_pop()} returns an entry's value and deletes it.
+\item \code{cache_pop()} returns an entry's value and deletes it. It deletes nothing
+when the entry's file is missing or the wrong size, but bytes that cannot
+be decoded are found only after the delete: the pop raises the codec's
+error and the damaged entry is gone.
 \item \code{cache_touch()} gives an entry a new deadline without rewriting its value.
 It does nothing to a missing key.
 \item \code{cache_incr()} and \code{cache_decr()} add to or subtract from a counter and

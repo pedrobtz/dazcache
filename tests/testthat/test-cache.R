@@ -87,6 +87,23 @@ test_that("with_cache() passes the cache to a function and closes it", {
   expect_false(cache_is_open(handle))
 })
 
+test_that("inline_max is capped at 1 MiB, and a value just under the cap stays inline", {
+  dir <- withr::local_tempdir()
+  expect_error(cache(dir, inline_max = 2^20 + 1), class = "dazcache_type_error")
+  expect_false(file.exists(file.path(dir, "cache.mdbx")))
+  s <- cache(dir, inline_max = 2^20)
+  withr::defer(cache_close(s))
+  expect_identical(s$config$inline_max, 2^20)
+  under <- as.raw(seq_len(2^20 - 1) %% 256)
+  at <- c(under, as.raw(0))
+  cache_set(s, "under", under, codec = codec_raw())
+  cache_set(s, "at", at, codec = codec_raw())
+  expect_identical(cache_get(s, "under"), under)
+  expect_identical(cache_get(s, "at"), at)
+  expect_error(cache_path(s, "under"), class = "dazcache_type_error")
+  expect_true(file.exists(cache_path(s, "at")))
+})
+
 test_that("arguments are checked", {
   dir <- withr::local_tempdir()
   expect_error(cache(dir, "extra"), class = "dazcache_type_error")

@@ -527,8 +527,8 @@ codec_encode <- function(codec, value, path, call = rlang::caller_env()) {
   list(codec = codec$name, version = codec$version, meta = meta, ext = ext)
 }
 
-codec_decode <- function(codec, path, meta, call = rlang::caller_env()) {
-  codec_guard(codec, "decode", call, codec$decode(path, meta), path = path)
+codec_decode <- function(codec, path, meta, key = NULL, call = rlang::caller_env()) {
+  codec_guard(codec, "decode", call, codec$decode(path, meta), path = path, key = key)
 }
 
 
@@ -585,15 +585,16 @@ codec_decode_bytes <- function(
   bytes,
   meta,
   stage,
+  key = NULL,
   call = rlang::caller_env()
 ) {
   if (!is.null(codec$decode_bytes)) {
-    return(codec_guard(codec, "decode", call, codec$decode_bytes(bytes, meta)))
+    return(codec_guard(codec, "decode", call, codec$decode_bytes(bytes, meta), key = key))
   }
   path <- stage()
   on.exit(unlink(path))
   writeBin(bytes, path)
-  value <- codec_decode(codec, path, meta, call = call)
+  value <- codec_decode(codec, path, meta, key = key, call = call)
   # The file is gone once this returns, so a value that is its path would
   # name nothing.
   if (is.character(value) && length(value) == 1L && identical(value, path)) {
@@ -659,18 +660,27 @@ codec_check_supports <- function(codec, value, call) {
 
 # Evaluate a codec's own code, turning its failures into dazcache_codec_error.
 # Fields in `...`, such as `path`, go on the condition.
-codec_guard <- function(codec, what, call, expr, ...) {
+# A decode names the key whose value it failed on, when it has one.
+codec_guard <- function(codec, what, call, expr, ..., key = NULL) {
   tryCatch(
     expr,
     dazcache_error = function(cnd) rlang::cnd_signal(cnd),
     error = function(cnd) {
+      subject <- if (what != "decode") {
+        "the value"
+      } else if (is.null(key)) {
+        "the stored value"
+      } else {
+        sprintf("the value of key %s", display_key(key))
+      }
       abort_codec_error(
         sprintf(
           "The codec %s failed to %s %s.",
           encodeString(codec$name, quote = "\""),
           what,
-          if (what == "decode") "the stored value" else "the value"
+          subject
         ),
+        key = key,
         codec = codec$name,
         ...,
         parent = cnd,

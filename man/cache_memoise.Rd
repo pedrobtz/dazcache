@@ -76,6 +76,13 @@ If the cache cannot store a result because its write lock stayed busy, it is
 full or it is read-only, the result is returned anyway, with a warning of
 class \code{dazcache_memoise_unstored}. A codec that cannot store it is an error.
 
+Inside \code{\link[=cache_transact]{cache_transact()}}, a memoised call joins the transaction: a result
+computed there is kept only if the block commits, and \code{f} runs while the
+block holds the cache's write lock. Keep slow producers out of blocks. A
+producer that hands its work to another process writing the same cache, such
+as a \code{callr} or \code{mirai} worker, makes that process wait for the lock, and it
+fails with a \code{dazcache_busy} error after its \code{timeout}.
+
 A result stored as a file, with \code{codec = codec_file()}, is the path of the
 cached file on a miss as on a hit, not the path \code{f} returned.
 

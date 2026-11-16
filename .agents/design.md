@@ -554,6 +554,16 @@ them, invalidating one result means clearing the store.
 not corruption, and `cache-model.md` §12 proves single-flight changes only the count of
 calls. Leases are v1.x (§19).
 
+**Inside `cache_transact()`, a memoised call joins the block** (D21): its lookup and its
+store are the block's, so a miss is kept only if the block commits, and a second call in
+the block is a hit. Its producer runs with the write lock held, as any value computed in
+the block would; §10's rule binds dazcache, which never opens a transaction around user
+code, and the block is user code. This is documented, not refused (#104): refusing would stop
+a function that uses a memoised helper from being called in a block. The hazard to
+name is a producer that hands work to another process writing the same cache — a `callr`
+or `mirai` worker — which waits for the lock and fails with `dazcache_busy` after
+`timeout`.
+
 ## 3.9 Base generics
 
 ```r
@@ -798,7 +808,9 @@ memoised function called with a large vector gets a working, if unprintable, key
 ## 6.1 Inline or file
 
 A value whose encoded size is under `inline_max` (32 KiB, matching `diskcache`; D5) is
-stored in the `values` database. Anything larger is written to a file and the record
+stored in the `values` database. `inline_max` is at most 1 MiB (`INLINE_MAX_LIMIT`),
+far under libmdbx's ~2 GiB value limit, so no inline write can reach `mdbx_bad_valsize`;
+`cache()` refuses a larger one with `dazcache_type_error`. Anything larger is written to a file and the record
 keeps a pointer. `codec_file()` and `codec_parquet()` are always file-backed regardless
 of size, because the file is their point.
 
@@ -1743,7 +1755,9 @@ derived indexes, so a store written by 0.1.0 opens under every later version.
 
 ```text
 single-flight leases        a lease record with holder and expiry, claimed in a short
-                            transaction, never held across a producer (§10)
+                            transaction, never held across a producer (§10); a memoised
+                            miss inside cache_transact() must not wait on another
+                            process's lease, which may be waiting on this block's lock
 stale-while-revalidate      probabilistic early recompute in cache_memoise(); the
                             memoize_stampede recipe
 stale-if-error              cache_fallback(f, s): serve the last good value when f fails;

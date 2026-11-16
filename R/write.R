@@ -289,7 +289,10 @@ parse_expire <- function(expire, now, call = rlang::caller_env()) {
 #'
 #' * `cache_add()` writes only if the key has no entry, and returns whether it
 #'   did. An expired entry counts as none.
-#' * `cache_pop()` returns an entry's value and deletes it.
+#' * `cache_pop()` returns an entry's value and deletes it. It deletes nothing
+#'   when the entry's file is missing or the wrong size, but bytes that cannot
+#'   be decoded are found only after the delete: the pop raises the codec's
+#'   error and the damaged entry is gone.
 #' * `cache_touch()` gives an entry a new deadline without rewriting its value.
 #'   It does nothing to a missing key.
 #' * `cache_incr()` and `cache_decr()` add to or subtract from a counter and
