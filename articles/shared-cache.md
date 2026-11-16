@@ -100,7 +100,7 @@ That is duplicated work, never a wrong answer.
 By default (`durability = "safe"`) every write is on disk before it
 returns. `durability = "fast"` skips waiting for the disk: a crash of
 the machine can lose recent writes, but never damages the cache.
-`"unsafe"` can damage it, for cachees you can rebuild. The first process
+`"unsafe"` can damage it, for caches you can rebuild. The first process
 to open a cache sets this for every process that opens it while it is
 open;
 [`cache_stats()`](https://pedrobtz.github.io/dazcache/reference/cache_entries.md)

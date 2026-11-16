@@ -142,7 +142,7 @@ That is duplicated work, never a wrong answer.</p>
 <p>By default (<code>durability = "safe"</code>) every write is on disk
 before it returns. <code>durability = "fast"</code> skips waiting for
 the disk: a crash of the machine can lose recent writes, but never
-damages the cache. <code>"unsafe"</code> can damage it, for cachees you
+damages the cache. <code>"unsafe"</code> can damage it, for caches you
 can rebuild. The first process to open a cache sets this for every
 process that opens it while it is open; <code><a href="../reference/cache_entries.html">cache_stats()</a></code>
 reports what is in force.</p>
