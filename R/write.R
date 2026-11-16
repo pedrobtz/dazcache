@@ -63,6 +63,9 @@ cache_set_entry <- function(
   extra = NULL,
   call = rlang::caller_env()
 ) {
+  # Every store checks the handle, not only the engine: a read-only handle
+  # can share an environment a writable handle opened (#161).
+  check_writable(cache, call)
   entry <- cache_prepare(cache, key, value, expire, tags, codec, call = call)
   on.exit(unstage(list(entry)))
   engine_write(
@@ -413,14 +416,20 @@ cache_pop <- function(cache, key, default) {
     }
     return(default)
   }
-  value[[1L]]
+  value <- value[[1L]]
+  # A user codec that always writes a file may decode to the path it was
+  # given, the held name that is unlinked on exit: copy that out too (#163).
+  if (!is.null(held) && is.character(value) && length(value) == 1L && identical(value, held)) {
+    value <- pop_file_copy(held, hit$record)
+  }
+  value
 }
 
 # A popped file entry's file, copied out of the cache to a writable file the
 # caller owns, with the blob's extension.
 pop_file_copy <- function(held, record) {
   ext <- file_ext(record_blob_name(record))
-  out <- tempfile("dazcache-", fileext = if (nzchar(ext)) paste0(".", ext))
+  out <- tempfile("dazcache-", fileext = if (nzchar(ext)) paste0(".", ext) else "")
   if (!file.copy(held, out, copy.mode = FALSE)) {
     abort_engine_error(
       sprintf("Could not copy the popped file to %s.", encodeString(out, quote = "\"")),

@@ -52,6 +52,10 @@ cache_entries <- function(cache, ..., prefix = NULL, tag = NULL, n = Inf) {
       )
       stored <- vapply(rows, tag_key_stored, character(1))
       records <- lapply(stored, function(k) store_get_record(cache, txn, k))
+      # A stale tag row is not the entry's tag (#165).
+      tagged <- vapply(records, function(r) !is.null(r) && utf8_text(tag) %in% r$tags, logical(1))
+      stored <- stored[tagged]
+      records <- records[tagged]
       if (!is.null(prefix)) {
         matches <- vapply(
           seq_along(stored),

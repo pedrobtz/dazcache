@@ -327,9 +327,11 @@ test_that("readers never see a dangling file while writers replace and delete", 
   # get_result() re-raises a child's error, so a failure says what it was.
   writer$wait(timeout = 120000)
   expect_no_error(writer$get_result())
+  # Each reader must have read values, not only missed: a reader that took
+  # every moving file for an absent entry would also raise nothing (#167).
   for (r in readers) {
     r$wait(timeout = 120000)
-    expect_no_error(r$get_result())
+    expect_gt(r$get_result(), 0)
   }
   expect_identical(store_violations(s), character())
 })
@@ -343,6 +345,9 @@ test_that("seven readers racing a writer through eviction never see a dangling f
   s <- cache(dir, inline_max = 100, size_limit = 7500)
   withr::defer(cache_close(s))
   values <- lapply(1:10, function(i) runif(300))
+  # Entries exist before any process starts, so a reader that finishes before
+  # the writer's first commit still has values to read (#167).
+  for (j in 0:19) cache_set(s, sprintf("k%02d", j), values[[j %% 10 + 1]])
   writer <- callr::r_bg(function(dir, values) {
     s <- dazcache::cache(dir)
     on.exit(dazcache::cache_close(s))
@@ -365,9 +370,11 @@ test_that("seven readers racing a writer through eviction never see a dangling f
   })
   writer$wait(timeout = 120000)
   expect_no_error(writer$get_result())
+  # Each reader must have read values, not only missed: a reader that took
+  # every moving file for an absent entry would also raise nothing (#167).
   for (r in readers) {
     r$wait(timeout = 120000)
-    expect_no_error(r$get_result())
+    expect_gt(r$get_result(), 0)
   }
   expect_lte(cache_count(s), 4L)
   expect_identical(store_violations(s), character())
@@ -440,4 +447,18 @@ test_that("writing the same bytes replaces a damaged blob (#114)", {
   cache_set(s, "third", x)
   expect_identical(cache_get(s, "a"), x)
   expect_identical(nrow(cache_check(s, hash = TRUE)), 0L)
+})
+
+test_that("a raw blob's file is exactly the value's bytes (#171)", {
+  s <- local_cache(inline_max = 10, codec = codec_raw())
+  bytes <- as.raw(c(0:255, 0:20))
+  text <- "caf\u00e9 \u2603, more than ten bytes"
+  cache_set(s, "raw", bytes)
+  cache_set(s, "text", text)
+  read <- function(k) {
+    p <- cache_path(s, k)
+    readBin(p, "raw", file.size(p))
+  }
+  expect_identical(read("raw"), bytes)
+  expect_identical(read("text"), charToRaw(enc2utf8(text)))
 })

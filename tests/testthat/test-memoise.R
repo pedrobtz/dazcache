@@ -256,6 +256,36 @@ test_that("a result the cache cannot store is returned, with a warning", {
   expect_identical(calls, 2)
 })
 
+test_that("a read-only handle sharing a writable environment stores nothing (#161)", {
+  dir <- withr::local_tempdir()
+  w <- local_cache(dir)
+  ro <- local_cache(dir, readonly = TRUE)
+  m <- cache_memoise(function(x) x * 10, ro, name = "f")
+  big <- cache_memoise(function(x) runif(1e5), ro, name = "big")
+  expect_warning(out <- m(1), class = "dazcache_memoise_unstored")
+  expect_identical(out, 10)
+  expect_warning(big(1), class = "dazcache_memoise_unstored")
+  expect_identical(cache_keys(w), character())
+})
+
+test_that("a memoised miss that fills the map inside a block fails the block (#164)", {
+  s <- local_cache(map_size = 2^20, inline_max = 10000, size_limit = Inf)
+  m <- cache_memoise(function(i) runif(1000), s, name = "fill")
+  cnd <- tryCatch(
+    cache_transact(s, {
+      cache_set(s, "before", 1)
+      for (i in 1:500) m(i)
+    }),
+    dazcache_store_full = function(cnd) cnd,
+    dazcache_memoise_unstored = function(cnd) cnd
+  )
+  expect_s3_class(cnd, "dazcache_store_full")
+  expect_null(s$engine$txn)
+  expect_false(cache_has(s, "before"))
+  cache_set(s, "after", 1)
+  expect_identical(cache_get(s, "after"), 1)
+})
+
 test_that("a file-backed result is the same path on a miss and a hit", {
   s <- local_cache()
   produce <- function(x) {
@@ -309,4 +339,12 @@ test_that("a hit is as visible as the producer's result was on the miss (#109)",
     expect_false(withVisible(quiet(1))$visible)
     expect_true(withVisible(loud(1))$visible)
   }
+})
+
+test_that("a memoised version of exactly 2^53 is accepted and keys exactly (#168)", {
+  s <- local_cache()
+  m <- cache_memoise(function(x) x, s, name = "f", version = 2^53)
+  expect_identical(m(1), 1)
+  expect_true(startsWith(cache_memoise_key(m, 1), "f/v9007199254740992/"))
+  expect_error(cache_memoise(function(x) x, s, name = "f", version = 2^53 + 2), class = "dazcache_type_error")
 })

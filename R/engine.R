@@ -344,25 +344,24 @@ engine_write <- function(e, fn, timeout = 60, call = rlang::caller_env()) {
 }
 
 # Inside a calling handler for an error: whether the error is being raised,
-# and so will unwind, rather than only signalled with signalCondition(). A
-# raise runs through stop(), .handleSimpleError() (an error from C code) or
-# rlang's signal_abort(), whose frames are still on the stack while the
-# handler runs.
+# and so will unwind, rather than only signalled with signalCondition() for
+# code that carries on (#124). Only the second case is recognisable: its
+# innermost condition frame is a signalCondition() called from outside
+# rlang. Everything else is a raise: stop(), .handleSimpleError(), rlang's
+# abort (which signals from inside rlang, then stops), and the classed errors
+# R raises straight from C code with no R frame at all (#160).
 engine_error_raised <- function() {
-  raisers <- list(base::stop, base::.handleSimpleError)
-  signal_abort <- get0("signal_abort", envir = asNamespace("rlang"), inherits = FALSE)
-  if (is.function(signal_abort)) {
-    raisers <- c(raisers, signal_abort)
-  }
   for (i in rev(seq_len(sys.nframe()))) {
     f <- sys.function(i)
-    for (r in raisers) {
-      if (identical(f, r)) {
-        return(TRUE)
-      }
+    if (identical(f, base::stop) || identical(f, base::.handleSimpleError)) {
+      return(TRUE)
+    }
+    if (identical(f, base::signalCondition)) {
+      caller <- if (i > 1L) environment(sys.function(i - 1L))
+      return(identical(caller, asNamespace("rlang")))
     }
   }
-  FALSE
+  TRUE
 }
 
 engine_begin_write <- function(e, timeout, call) {

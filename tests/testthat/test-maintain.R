@@ -406,6 +406,21 @@ test_that("prefix and tag scans are exact one under, at and one over a scan chun
   }
 })
 
+test_that("a stale tag row neither lists nor evicts a live entry (#165)", {
+  s <- local_cache()
+  e <- s$engine
+  cache_set(s, "keep", 1, tags = "b")
+  cache_set(s, "tagged", 2, tags = "a")
+  engine_write(e, function(txn) {
+    engine_put(txn, engine_db(e, "tags"), tag_key("a", "keep"), raw())
+  })
+  expect_identical(cache_entries(s, tag = "a")$key, "tagged")
+  cache_evict(s, tag = "a")
+  expect_identical(cache_keys(s), "keep")
+  expect_identical(cache_get(s, "keep"), 1)
+  expect_identical(store_violations(s), character())
+})
+
 test_that("cache_evict() by tag ends on tag rows whose entries are gone", {
   s <- local_cache()
   e <- s$engine
@@ -643,4 +658,53 @@ test_that("a staging file left by an earlier process with this PID neither block
   found <- cache_check(s, repair = TRUE)
   expect_setequal(found$path[found$kind == "tmp_stale"], stale)
   expect_identical(list.files(file.path(s$dir, "tmp")), character())
+})
+
+test_that("a file reaped while cache_check() runs is not a finding (#166)", {
+  s <- local_cache(inline_max = 100)
+  cache_set(s, "a", runif(100))
+  cache_set(s, "b", runif(100))
+  path <- cache_path(s, "a")
+  snap <- engine_read(s$engine, function(txn) check_snapshot(s, txn))
+  # What a concurrent delete and reap does between the snapshot and the
+  # file checks.
+  Sys.chmod(path, "0644")
+  unlink(path)
+  expect_identical(check_hashes(s, snap), character())
+  found <- check_findings(s, snap, character())
+  expect_identical(nrow(found), 0L)
+  expect_false(blob_is_writable(path))
+  # Under the lock, a mismatch that has since healed is not repaired.
+  expect_identical(check_hash_mismatch(s, basename(cache_path(s, "b"))), character())
+})
+
+test_that("one write evicts at most cull_limit entries (#169)", {
+  k <- 3L
+  for (due in k + c(-1L, 0L, 1L)) {
+    # Stored: `due` entries over the size limit once the next write lands.
+    s <- local_cache(size_limit = 10 * 20, cull_limit = k, codec = codec_raw())
+    for (i in 1:20) cache_set(s, sprintf("s%02d", i), as.raw(1:10))
+    cache_set(s, "big", as.raw(seq_len(10 * due) %% 256))
+    expect_identical(cache_stats(s)$evictions, as.double(min(due, k)), label = due)
+    expect_identical(store_violations(s), character())
+    # Expired: `due` expired entries, and one write that crosses the limit
+    # reclaims at most k of them.
+    s <- local_cache(cull_limit = k, size_limit = 2000)
+    for (i in seq_len(due)) cache_set(s, sprintf("e%02d", i), 1, expire = 0)
+    cache_set(s, "trigger", runif(300))
+    expect_identical(cache_stats(s)$expired, as.double(min(due, k)), label = due)
+  }
+})
+
+test_that("where liveness cannot be asked, a staging file is stale from 3600 seconds (#172)", {
+  s <- local_cache()
+  dir.create(file.path(s$dir, "tmp"), showWarnings = FALSE)
+  path <- file.path(s$dir, "tmp", sprintf("%d-x-1", Sys.getpid() + 1L))
+  file.create(path)
+  local_mocked_bindings(pid_known_dead = function(pid) FALSE, pid_alive = function(pid) FALSE)
+  for (age in TMP_STALE_AGE + c(-1, 0, 1)) {
+    local_mocked_bindings(staging_age = function(path) age)
+    found <- cache_check(s)
+    expect_identical(nrow(found) == 1L, age >= TMP_STALE_AGE, label = age)
+  }
 })

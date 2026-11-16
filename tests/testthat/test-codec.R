@@ -302,3 +302,23 @@ test_that("a decoder that returns its path needs always_file, and is refused wit
   expect_identical(readLines(cache_get(s, "b")), "x")
   expect_error(codec("q", identity, identity, always_file = NA), class = "dazcache_codec_error")
 })
+
+test_that("a user always_file codec that decodes to its path pops and memoises like codec_file() (#163)", {
+  s <- local_cache()
+  filed <- codec(
+    "pf",
+    encode = function(value, path) writeLines(value, path),
+    decode = function(path, meta) path,
+    always_file = TRUE
+  )
+  cache_set(s, "a", c("a", "z"), codec = filed)
+  popped <- cache_pop(s, "a")
+  expect_true(file.exists(popped))
+  expect_identical(readLines(popped), c("a", "z"))
+  expect_false(startsWith(normalizePath(popped), normalizePath(s$dir)))
+  m <- cache_memoise(function(x) c("a", x), s, codec = filed, name = "pf")
+  miss <- m("z")
+  hit <- m("z")
+  expect_identical(miss, hit)
+  expect_identical(miss, cache_path(s, cache_memoise_key(m, "z")))
+})
