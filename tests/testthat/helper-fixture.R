@@ -15,3 +15,17 @@ fixture_entries <- function(file) {
     list(key = "file", value = file, codec = codec_file(), result = "file")
   )
 }
+
+# A temporary copy of the 0.1.0 fixture store, with its blobs read-only as
+# 0.1.0 wrote them; see test-fixture.R.
+local_fixture_store <- function(env = parent.frame()) {
+  dir <- withr::local_tempdir(.local_envir = env)
+  utils::untar(test_path("fixtures", "store-0.1.0.tar.gz"), exdir = dir, tar = "internal")
+  dir <- file.path(dir, "store-0.1.0")
+  # Blobs are 0444 as 0.1.0 wrote them, whatever the archive kept.
+  blobs <- list.files(file.path(dir, "blobs"), recursive = TRUE, full.names = TRUE)
+  Sys.chmod(blobs, "0444")
+  # Writable again before the directory goes: Windows will not delete them.
+  withr::defer(Sys.chmod(blobs, "0644"), envir = env)
+  dir
+}

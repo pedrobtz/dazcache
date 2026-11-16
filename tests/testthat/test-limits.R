@@ -2,8 +2,6 @@
 # reaches it, in the unit it is counted in (correctness.md, "Straddle every
 # threshold"). A test far from a limit passes an off-by-one; these do not.
 
-bytes_of <- function(x) nchar(x, type = "bytes")
-
 test_that("KEY_MAX counts UTF-8 bytes, on every path a key takes (#84)", {
   s <- local_cache()
   keys <- c(
