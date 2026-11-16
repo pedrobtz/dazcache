@@ -127,7 +127,7 @@ available.</p></dd>
 <dd><p>Values whose encoding is smaller than this many bytes are
 kept inside the database; the rest, from exactly <code>inline_max</code> bytes up,
 become files. Counters are always kept inside, even with <code>inline_max = 0</code>.
-Stored with the cache.</p></dd>
+At most 1 MiB (<code>2^20</code>). Stored with the cache.</p></dd>
 
 
 <dt id="arg-codec">codec<a class="anchor" aria-label="anchor" href="#arg-codec"></a></dt>

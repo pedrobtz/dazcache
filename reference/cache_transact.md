@@ -11,9 +11,11 @@ writes commit. A nested `cache_transact()` joins the outer one.
 
 The transaction holds the cache's write lock for as long as `code` runs,
 so other processes' writes wait: keep it short, and never compute a
-value inside it that takes long to produce. It is also the fastest way
-to write many entries, since the cost of making a write durable is paid
-once.
+value inside it that takes long to produce. A function made with
+[`cache_memoise()`](https://pedrobtz.github.io/dazcache/reference/cache_memoise.md)
+joins the block too, so on a miss its producer runs with the lock held.
+It is also the fastest way to write many entries, since the cost of
+making a write durable is paid once.
 
 If the process is killed while `code` runs, nothing it wrote is kept. On
 macOS, and every platform but Linux and Windows, its lock is not

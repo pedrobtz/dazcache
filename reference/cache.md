@@ -71,8 +71,8 @@ with_cache(dir, fn, ...)
 
   Values whose encoding is smaller than this many bytes are kept inside
   the database; the rest, from exactly `inline_max` bytes up, become
-  files. Counters are always kept inside, even with `inline_max = 0`.
-  Stored with the cache.
+  files. Counters are always kept inside, even with `inline_max = 0`. At
+  most 1 MiB (`2^20`). Stored with the cache.
 
 - codec:
 

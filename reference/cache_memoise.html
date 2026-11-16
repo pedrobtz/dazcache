@@ -14,6 +14,12 @@ is kept. That is duplicated work, never a wrong result.
 If the cache cannot store a result because its write lock stayed busy, it is
 full or it is read-only, the result is returned anyway, with a warning of
 class dazcache_memoise_unstored. A codec that cannot store it is an error.
+Inside cache_transact(), a memoised call joins the transaction: a result
+computed there is kept only if the block commits, and f runs while the
+block holds the cache's write lock. Keep slow producers out of blocks. A
+producer that hands its work to another process writing the same cache, such
+as a callr or mirai worker, makes that process wait for the lock, and it
+fails with a dazcache_busy error after its timeout.
 A result stored as a file, with codec = codec_file(), is the path of the
 cached file on a miss as on a hit, not the path f returned.
 cache_memoise_key() returns the key a call would use, cache_forget()
@@ -33,6 +39,12 @@ is kept. That is duplicated work, never a wrong result.
 If the cache cannot store a result because its write lock stayed busy, it is
 full or it is read-only, the result is returned anyway, with a warning of
 class dazcache_memoise_unstored. A codec that cannot store it is an error.
+Inside cache_transact(), a memoised call joins the transaction: a result
+computed there is kept only if the block commits, and f runs while the
+block holds the cache's write lock. Keep slow producers out of blocks. A
+producer that hands its work to another process writing the same cache, such
+as a callr or mirai worker, makes that process wait for the lock, and it
+fails with a dazcache_busy error after its timeout.
 A result stored as a file, with codec = codec_file(), is the path of the
 cached file on a miss as on a hit, not the path f returned.
 cache_memoise_key() returns the key a call would use, cache_forget()
@@ -89,6 +101,12 @@ is kept. That is duplicated work, never a wrong result.</p>
 <p>If the cache cannot store a result because its write lock stayed busy, it is
 full or it is read-only, the result is returned anyway, with a warning of
 class <code>dazcache_memoise_unstored</code>. A codec that cannot store it is an error.</p>
+<p>Inside <code><a href="cache_transact.html">cache_transact()</a></code>, a memoised call joins the transaction: a result
+computed there is kept only if the block commits, and <code>f</code> runs while the
+block holds the cache's write lock. Keep slow producers out of blocks. A
+producer that hands its work to another process writing the same cache, such
+as a <code>callr</code> or <code>mirai</code> worker, makes that process wait for the lock, and it
+fails with a <code>dazcache_busy</code> error after its <code>timeout</code>.</p>
 <p>A result stored as a file, with <code>codec = codec_file()</code>, is the path of the
 cached file on a miss as on a hit, not the path <code>f</code> returned.</p>
 <p><code>cache_memoise_key()</code> returns the key a call would use, <code>cache_forget()</code>
