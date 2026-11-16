@@ -345,6 +345,9 @@ test_that("seven readers racing a writer through eviction never see a dangling f
   s <- cache(dir, inline_max = 100, size_limit = 7500)
   withr::defer(cache_close(s))
   values <- lapply(1:10, function(i) runif(300))
+  # Entries exist before any process starts, so a reader that finishes before
+  # the writer's first commit still has values to read (#167).
+  for (j in 0:19) cache_set(s, sprintf("k%02d", j), values[[j %% 10 + 1]])
   writer <- callr::r_bg(function(dir, values) {
     s <- dazcache::cache(dir)
     on.exit(dazcache::cache_close(s))
