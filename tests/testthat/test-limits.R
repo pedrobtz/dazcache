@@ -151,3 +151,18 @@ test_that("size_limit holds exactly: full is not over, one byte over evicts the 
   expect_identical(held(b), size)
   expect_identical(cache_stats(b)$bytes_blob, size)
 })
+
+test_that("cull_limit up to .Machine$integer.max evicts on a write over size_limit (#162)", {
+  for (cl in .Machine$integer.max - c(1L, 0L)) {
+    s <- local_cache(size_limit = 30, cull_limit = cl, codec = codec_raw())
+    for (i in 1:4) cache_set(s, paste0("k", i), as.raw(1:10))
+    cache_incr(s, "c")
+    expect_true(cache_has(s, "k4"), label = cl)
+    expect_false(cache_has(s, "k1"), label = cl)
+    expect_identical(store_violations(s), character())
+  }
+  expect_error(
+    cache(withr::local_tempdir(), cull_limit = .Machine$integer.max + 1),
+    class = "dazcache_type_error"
+  )
+})

@@ -341,6 +341,44 @@ test_that("an error only signalled in a block does not abort it (#124)", {
   }
 })
 
+test_that("every kind of error that ends a block leaves nothing committed (#160)", {
+  s <- local_cache()
+  raisers <- list(
+    stop = function() stop("hard"),
+    abort = function() rlang::abort("hard"),
+    cnd_signal = function() rlang::cnd_signal(rlang::error_cnd("x", message = "hard")),
+    internal = function() log(-1, base = "x"),
+    vapply = function() vapply(1, function(x) "a", numeric(1)),
+    subscript = function() list(1)[[3]],
+    subscript_name = function() c(a = 1)[["b"]],
+    missing_arg = function() (function(x) x)(),
+    warn2 = function() {
+      withr::local_options(warn = 2)
+      as.integer("x")
+    }
+  )
+  for (k in names(raisers)) {
+    expect_error(cache_transact(s, {
+      cache_set(s, k, 1)
+      raisers[[k]]()
+    }), label = k)
+    expect_false(cache_has(s, k), label = k)
+    expect_null(s$engine$txn)
+  }
+  # Nested, and through a memoised producer.
+  expect_error(cache_transact(s, {
+    cache_set(s, "outer", 1)
+    cache_transact(s, list(1)[[3]])
+  }))
+  expect_false(cache_has(s, "outer"))
+  bad <- cache_memoise(function(x) list(1)[[3]], s, name = "bad")
+  expect_error(cache_transact(s, {
+    cache_set(s, "before", 1)
+    bad(1)
+  }))
+  expect_false(cache_has(s, "before"))
+})
+
 test_that("an aborted block reaps the blobs it published, and keeps those a surviving entry holds", {
   s <- local_cache(inline_max = 100)
   expect_error(cache_transact(s, {

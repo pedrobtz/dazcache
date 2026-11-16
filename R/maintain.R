@@ -179,9 +179,15 @@ cache_evict <- function(cache, ..., tag = NULL, prefix = NULL) {
           n = chunk
         )
         for (row in rows) {
-          # A row whose entry is gone is damage; delete it too, or the walk would
-          # find it at the front of every chunk and never end.
-          if (!store_delete_entry(cache, txn, tag_key_stored(row))) {
+          # Only an entry whose record carries the tag goes. A row whose entry
+          # is gone, or no longer has the tag, is damage: delete just the row,
+          # or the walk would find it at the front of every chunk and never
+          # end, and would delete a live entry for it (#165).
+          k <- tag_key_stored(row)
+          record <- store_get_record(cache, txn, k)
+          if (!is.null(record) && tag %in% record$tags) {
+            store_delete_entry(cache, txn, k)
+          } else {
             engine_del(txn, tags_db, row)
           }
         }
@@ -286,7 +292,8 @@ store_evict_batch <- function(s, txn, n, limit, protect = character()) {
     return(list(rows = 0, removed = 0))
   }
   db <- engine_db(s$engine, index)
-  rows <- engine_scan(txn, db, n = n + length(protect))
+  # In doubles: cull_limit may be .Machine$integer.max (#162).
+  rows <- engine_scan(txn, db, n = as.double(n) + length(protect))
   consumed <- 0
   done <- 0
   for (row in rows) {

@@ -58,6 +58,9 @@ cache_check <- function(cache, ..., repair = FALSE, hash = FALSE) {
     e,
     function(txn) {
       snap <- check_snapshot(cache, txn)
+      # The hashes were taken before the lock: a file may have been stored
+      # again since, or reaped. Only what is still wrong now is repaired (#166).
+      corrupt <- check_hash_mismatch(cache, corrupt)
       findings <- check_findings(cache, snap, corrupt)
       reap <- check_repair(cache, txn, snap, findings)
       # Unlinked once the deletes are durable: after this commit, or inside
@@ -148,14 +151,22 @@ check_hashes <- function(s, snap) {
     if (!isTRUE(r$inline)) record_blob_name(r)
   }))
   stored <- intersect(union(names(snap$blobs), named), snap$files)
+  check_hash_mismatch(s, stored)
+}
+
+# Of the blob names given, those whose file's bytes do not hash to the name. A
+# file gone since it was listed has no hash and is not a mismatch: another
+# process deleted its entry and reaped it while the check ran (#166).
+check_hash_mismatch <- function(s, names) {
   bad <- vapply(
-    stored,
+    names,
     function(name) {
-      !identical(hash_file(blob_path(s, name)), sub("\\..*$", "", name))
+      h <- hash_file(blob_path(s, name))
+      !is.na(h) && !identical(h, sub("\\..*$", "", name))
     },
     logical(1)
   )
-  stored[bad]
+  names[bad]
 }
 
 check_findings <- function(s, snap, corrupt = character()) {
@@ -224,9 +235,15 @@ check_findings <- function(s, snap, corrupt = character()) {
     path <- blob_path(s, name)
     # Whether the file is right is asked before whether it is counted: a
     # repair adopts an uncounted file, and must not adopt a damaged one.
+    size <- file.size(path)
     if (!name %in% snap$files) {
       add("blob_missing", key = k, path = path, detail = "file absent")
-    } else if (file.size(path) != r$bytes || name %in% corrupt) {
+    } else if (is.na(size)) {
+      # Listed at the snapshot, gone now: outside a write transaction another
+      # process may delete the entry and reap its file while the check runs
+      # (#166). Nothing is wrong with what is left.
+      next
+    } else if (size != r$bytes || name %in% corrupt) {
       add(
         "blob_corrupt",
         key = k,
@@ -381,8 +398,9 @@ check_repair <- function(s, txn, snap, findings) {
 # leaves. The mode is read rather than access() asked, which says yes to root.
 # Windows has no mode bits to compare.
 blob_is_writable <- function(path) {
+  # A file gone since it was listed has no mode, and is not writable (#166).
   .Platform$OS.type == "unix" &&
-    bitwAnd(as.integer(file.info(path, extra_cols = FALSE)$mode), strtoi("222", 8L)) != 0L
+    isTRUE(bitwAnd(as.integer(file.info(path, extra_cols = FALSE)$mode), strtoi("222", 8L)) != 0L)
 }
 
 # Staging files left by processes that are gone. A file whose process is known
@@ -390,18 +408,23 @@ blob_is_writable <- function(path) {
 # is stale once it is an hour old. Its age is from the later of its
 # modification and change times: codec_file() copies a file's modification
 # time with it, so a file staged a moment ago can look a year old.
+# Where a process's liveness cannot be asked, its staging file is stale once
+# it is this many seconds old.
+TMP_STALE_AGE <- 3600
+
+# Seconds since a staging file was last modified or changed.
+staging_age <- function(path) {
+  info <- file.info(path)
+  as.double(difftime(Sys.time(), max(info$mtime, info$ctime), units = "secs"))
+}
+
 check_tmp <- function(s, repair) {
   dir <- file.path(s$dir, "tmp")
   files <- list.files(dir, full.names = TRUE)
   out <- list()
   for (path in files) {
     pid <- suppressWarnings(as.integer(sub("-.*$", "", basename(path))))
-    info <- file.info(path)
-    age <- as.double(difftime(
-      Sys.time(),
-      max(info$mtime, info$ctime),
-      units = "secs"
-    ))
+    age <- staging_age(path)
     if (is.na(pid) || is.na(age)) {
       next
     }
@@ -411,7 +434,7 @@ check_tmp <- function(s, repair) {
       if (startsWith(basename(path), stage_prefix())) {
         next
       }
-    } else if (!pid_known_dead(pid) && (age < 3600 || pid_alive(pid))) {
+    } else if (!pid_known_dead(pid) && (age < TMP_STALE_AGE || pid_alive(pid))) {
       next
     }
     if (repair) {

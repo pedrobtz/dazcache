@@ -297,3 +297,12 @@ test_that("counter writes run the cull step like every other write (#117)", {
   expect_true(cache_has(s, "d"))
   expect_gt(cache_stats(s)$evictions, 0)
 })
+
+test_that("an entry is live before its deadline and expired at it (#170)", {
+  deadline <- 1e9
+  record <- list(expire = deadline)
+  expect_true(is_live(record, deadline - 1e-3))
+  expect_false(is_live(record, deadline))
+  expect_false(is_live(record, deadline + 1e-3))
+  expect_true(is_live(list(expire = Inf), deadline))
+})

@@ -14,13 +14,40 @@ engine_fill <- function(e, pairs, db = NULL) {
 
 # A child process loads dazcache from the library, not from the sources under
 # test. R CMD check installs the copy it checks; devtools::test() does not, so
-# there the child tests run only when DAZCACHE_TEST_CHILDREN=true says the
-# installed copy is current (after R CMD INSTALL .).
+# there the child tests run only when DAZCACHE_TEST_CHILDREN=true, after
+# R CMD INSTALL . (CLAUDE.md, Commands). The installed copy is then compared
+# with the sources, once per session, and a stale one fails the test rather
+# than passing it on the old code (#173).
 skip_unless_children_see_this_build <- function() {
   skip_if_not_installed("callr")
-  if (!testthat::is_checking() && !isTRUE(as.logical(Sys.getenv("DAZCACHE_TEST_CHILDREN")))) {
+  if (testthat::is_checking()) {
+    return(invisible())
+  }
+  if (!isTRUE(as.logical(Sys.getenv("DAZCACHE_TEST_CHILDREN")))) {
     skip("child processes would load an installed dazcache, not this build")
   }
+  if (is.null(children_build$current)) {
+    children_build$current <- identical(
+      callr::r(namespace_code, list("dazcache")),
+      namespace_code("dazcache")
+    )
+  }
+  if (!children_build$current) {
+    stop("The installed dazcache differs from these sources: run R CMD INSTALL . first.")
+  }
+}
+
+children_build <- new.env(parent = emptyenv())
+
+# Every function of a namespace, deparsed from its parse tree (not its source
+# references), so an installed copy and load_all() agree when the code does.
+namespace_code <- function(pkg) {
+  ns <- asNamespace(pkg)
+  names <- sort(ls(ns, all.names = TRUE))
+  fns <- Filter(function(n) is.function(get(n, envir = ns)), names)
+  vapply(fns, function(n) {
+    paste(deparse(get(n, envir = ns), control = c("keepInteger", "niceNames", "showAttributes")), collapse = "\n")
+  }, character(1))
 }
 
 # Every storage invariant that must hold between transactions (design.md §7, §8,
@@ -61,6 +88,10 @@ store_violations <- function(s) {
       }
       if (!file.exists(blob_path(s, name))) out <- c(out, paste("blobs row without a file:", name))
     }
+    inline_keys <- names(records)[vapply(records, function(r) isTRUE(r$inline), logical(1))]
+    values <- engine_scan(txn, engine_db(e, "values"), as = "character")
+    orphans <- setdiff(values, inline_keys)
+    if (length(orphans) > 0L) out <- c(out, paste("value row without an inline record:", orphans))
     counters <- store_counters(txn)
     if (!isTRUE(all.equal(counters$bytes_inline, bytes_inline))) out <- c(out, "bytes_inline drifted")
     blob_bytes <- sum(vapply(rows, function(r) r$bytes, 0))

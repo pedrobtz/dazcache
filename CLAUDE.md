@@ -221,7 +221,8 @@ labels (shared `ci.md`):
 ```sh
 Rscript -e 'install.packages("mdbx")'                  # the engine, from CRAN
 Rscript -e 'devtools::load_all()'                      # load for interactive work
-Rscript -e 'devtools::test()'                          # full test suite
+Rscript -e 'devtools::test()'                          # suite, minus the child-process tests
+R CMD INSTALL . && DAZCACHE_TEST_CHILDREN=true Rscript -e 'devtools::test()'  # full suite
 Rscript -e 'devtools::test(filter = "key")'            # one test file (test-key.R)
 Rscript -e 'testthat::test_file("tests/testthat/test-key.R")'
 Rscript -e 'devtools::document()'                      # roxygen -> NAMESPACE, man/
@@ -234,5 +235,7 @@ vectors, then the engine file and ordered encodings, then codecs, then the core,
 with crash injection, and the rest of 0.1.0. A release before 1.0.0 implements a subset of
 `design.md` §3 but always writes the final on-disk format. Cross-process behaviour is tested by spawning real R sessions with `callr`, and
 the crash-window tests in `design.md` §16 are the only ones that can catch the ordering
-claims above. Run the full suite — not just a filtered file — before concluding a storage
-change is sound.
+claims above. They start child processes, which load the installed package: plain
+`devtools::test()` skips them, and the full suite (`R CMD INSTALL .` then
+`DAZCACHE_TEST_CHILDREN=true`) refuses a stale install. Run the full suite — not just a
+filtered file — before concluding a storage change is sound.

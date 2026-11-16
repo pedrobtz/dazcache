@@ -64,11 +64,24 @@ test_that("base generics read, write and count", {
   expect_identical(s$dir, cache_dir(s))
 })
 
-test_that("as.list() warns on a large cache", {
+test_that("as.list() is silent at 1000 entries and warns at 1001 (#172)", {
   s <- local_cache()
-  cache_mset(s, stats::setNames(as.list(1:1001), sprintf("k%04d", 1:1001)))
+  cache_mset(s, stats::setNames(as.list(1:1000), sprintf("k%04d", 1:1000)))
+  expect_no_warning(out <- as.list(s))
+  expect_length(out, 1000L)
+  cache_set(s, "k1001", 1001L)
   expect_warning(out <- as.list(s), "1001")
   expect_length(out, 1001L)
+})
+
+test_that("as.list() refuses above 100,000 entries (#172)", {
+  s <- local_cache()
+  cache_set(s, "a", 1)
+  keys <- function(n) function(cache, ...) rep("a", n)
+  local_mocked_bindings(cache_keys = keys(1e5))
+  expect_warning(out <- as.list(s), "100000")
+  local_mocked_bindings(cache_keys = keys(1e5 + 1))
+  expect_error(as.list(s), class = "dazcache_unsupported")
 })
 
 test_that("an adapter owns only its own keys, and a prefix must be delimited (#108)", {

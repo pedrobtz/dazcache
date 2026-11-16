@@ -283,7 +283,13 @@ memo_call <- function(frame, mc, info) {
       TRUE
     },
     dazcache_busy = function(cnd) memo_unstored(info, cnd),
-    dazcache_store_full = function(cnd) memo_unstored(info, cnd),
+    # Inside cache_transact() a full map has already failed the block's
+    # transaction, so carrying on would only lose the block's other writes
+    # with a misleading warning (#164).
+    dazcache_store_full = function(cnd) {
+      if (!is.null(info$cache$engine$txn)) rlang::cnd_signal(cnd)
+      memo_unstored(info, cnd)
+    },
     dazcache_readonly = function(cnd) memo_unstored(info, cnd)
   )
   value <- result$value
@@ -310,9 +316,12 @@ memo_lookup <- function(cache, key) {
   list(value = value[[1L]], visible = !isTRUE(hit$record$invisible))
 }
 
+# Whether a stored result is read back from the cache on a miss: every value
+# a codec always writes as a file, whose decode may return the file's path
+# (#163), not only codec_file()'s.
 memo_file_backed <- function(info, value) {
   codec <- info$codec %||% info$cache$codec
-  !is.null(codec) && identical(codec_for_value(codec, value)$name, "file")
+  !is.null(codec) && isTRUE(codec_for_value(codec, value)$always_file)
 }
 
 memo_key_of <- function(frame, mc, info) {
