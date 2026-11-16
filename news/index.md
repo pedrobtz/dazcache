@@ -31,6 +31,7 @@
   ‘mdbx’; values of `inline_max` bytes or more become read-only,
   content-addressed files, stored once however many keys hold them
   ([`cache_path()`](https://pedrobtz.github.io/dazcache/reference/cache_path.md)).
+  `inline_max` is at most 1 MiB.
 
 - Entries expire (`expire =`,
   [`cache_expire()`](https://pedrobtz.github.io/dazcache/reference/cache_expire.md)),
@@ -54,4 +55,6 @@
   lets ‘memoise’ and ‘shiny’ use a cache.
 
 - [`cache_check()`](https://pedrobtz.github.io/dazcache/reference/cache_check.md)
-  finds and repairs damage, and reclaims what a crash leaves.
+  finds and repairs damage, and reclaims what a crash leaves. A stored
+  value that no longer decodes is a `dazcache_codec_error` naming its
+  key.
