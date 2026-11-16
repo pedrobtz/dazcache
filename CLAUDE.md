@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `dazcache` is an R package with **0.1.0 implemented** (roadmap stages S0–S10) and prepared
 for CRAN: the cache, blobs, expiry, tags, eviction, transactions, memoisation, `cachem`
-interop and `cache_check()`. CI is the R-CMD-check, coverage and pkgdown workflows from
-`pedrobtz/r-actions`. Later releases (frames, access-aware eviction, the rest of
+interop and `cache_check()`. Every CI workflow calls `pedrobtz/r-actions`; see
+"Continuous integration" below. Later releases (frames, access-aware eviction, the rest of
 `design.md` v1) follow the roadmap. The design lives in `.agents/`, five documents, and `.agents/assurance.md` records how the code is checked:
 
 - **`.agents/design.md`** — **the contract**: semantics, API, storage, concurrency, and the
@@ -195,6 +195,26 @@ enforce it.
 live in `Suggests` and must degrade to a clear `dazcache_codec_error`, verified by the
 `nosuggests` job of the shared R-CMD-check workflow. The R `polars` package is not on CRAN
 and is used only when found installed.
+
+## Continuous integration
+
+Every workflow calls a `pedrobtz/r-actions` reusable workflow, gated by the shared
+labels (shared `ci.md`):
+
+- `R-CMD-check.yaml` — `r-cmd-check.yml@v1`, `profile: auto`: one quick leg on a pull
+  request; the full set weekly, on dispatch and under `full-ci`. Runners are macOS,
+  Windows and Ubuntu R-release plus Ubuntu oldrel-1 (R 4.5, the declared floor); the
+  default R-hub containers stay, as the only R-devel legs; `nosuggests: true`.
+- `coverage.yaml` — `coverage.yml`, pinned to a commit (`v1.43.0`) because it holds a
+  write token; on pull requests and weekly.
+- `pkgdown.yaml` — `pkgdown.yml@v1`: builds on pull requests, deploys from main and
+  releases.
+- `assurance.yaml` — `assurance.yml@v1`: holds `.agents/assurance.md` to the standard.
+- `cran-special.yaml` — `cran-special.yml@v1`: CRAN's `rlibro` and `vnu` (`rcnst` skips a
+  package with no `src/`); weekly, on dispatch and under `full-ci` only.
+- `cran-release.yaml` — `cran-release.yml`, pinned to a commit (`v1.43.0`): on the push
+  of `CRAN-SUBMISSION`, tags the submitted commit, publishes the release from `NEWS.md`
+  and opens the `.9000` bump. `CRAN-SUBMISSION` is in `.Rbuildignore`, not `.gitignore`.
 
 ## Commands
 

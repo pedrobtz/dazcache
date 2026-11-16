@@ -12,6 +12,8 @@ This is the first submission of dazcache.
   (`clang23`, `ubuntu-clang`, `ubuntu-gcc16`)
 * GitHub Actions, ubuntu-latest: R release with no Suggests installed
   (CRAN's noSuggests flavor)
+* GitHub Actions (pedrobtz/r-actions `cran-special.yml`): CRAN's `rlibro`
+  and `vnu` checks
 
 ## R CMD check results
 

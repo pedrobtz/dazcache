@@ -9,3 +9,6 @@
 ^README\.Rmd$
 ^air\.toml$
 ^\.claude$
+^CRAN-SUBMISSION$
+^AGENTS\.md$
+^\.superpowers$
