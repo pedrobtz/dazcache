@@ -14,6 +14,7 @@
 * Small values live in a transactional 'libmdbx' database through 'mdbx';
   values of `inline_max` bytes or more become read-only, content-addressed
   files, stored once however many keys hold them (`cache_path()`).
+  `inline_max` is at most 1 MiB.
 
 * Entries expire (`expire =`, `cache_expire()`), carry tags
   (`cache_evict(tag =)`), and are evicted least-recently-stored first when the
@@ -26,3 +27,5 @@
   processes; `as_cachem()` lets 'memoise' and 'shiny' use a cache.
 
 * `cache_check()` finds and repairs damage, and reclaims what a crash leaves.
+  A stored value that no longer decodes is a `dazcache_codec_error` naming its
+  key.

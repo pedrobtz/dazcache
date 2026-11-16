@@ -3,18 +3,6 @@
 # wrote; this can (#72). Never regenerate the fixture to make this pass after
 # 0.1.0 is released: a failure means stored caches would no longer read.
 
-local_fixture_store <- function(env = parent.frame()) {
-  dir <- withr::local_tempdir(.local_envir = env)
-  utils::untar(test_path("fixtures", "store-0.1.0.tar.gz"), exdir = dir, tar = "internal")
-  dir <- file.path(dir, "store-0.1.0")
-  # Blobs are 0444 as 0.1.0 wrote them, whatever the archive kept.
-  blobs <- list.files(file.path(dir, "blobs"), recursive = TRUE, full.names = TRUE)
-  Sys.chmod(blobs, "0444")
-  # Writable again before the directory goes: Windows will not delete them.
-  withr::defer(Sys.chmod(blobs, "0644"), envir = env)
-  dir
-}
-
 test_that("a store written by 0.1.0 reads back every entry, and checks clean", {
   dir <- local_fixture_store()
   s <- cache(dir, readonly = TRUE)
