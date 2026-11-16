@@ -1,3 +1,5 @@
+# Reusable coverage workflow from https://github.com/pedrobtz/r-actions.
+# Pinned to a commit, not a tag: it holds a write token (shared ci.md).
 on:
   # No `push:`: a pull request already checks its merge with main,
   # and the schedule checks main (r-actions README, "Pushes to main").
@@ -5,6 +7,7 @@ on:
     - cron: "9 2 * * 6"
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 name: coverage
 
@@ -14,6 +17,14 @@ concurrency:
 
 jobs:
   coverage:
-    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@v1
+    # Decided without a runner: `ci:docs`, `ci:minimal` and
+    # `skip-ci:coverage` skip it (shared ci.md, Labels).
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+      || !(contains(github.event.pull_request.labels.*.name, 'ci:docs')
+        || contains(github.event.pull_request.labels.*.name, 'ci:minimal')
+        || contains(github.event.pull_request.labels.*.name, 'skip-ci:coverage'))
+    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@d53e033699ab3fb2fa48a156156e2f142ff68fbc # v1.43.0
     permissions:
       contents: write

@@ -4,9 +4,10 @@ on:
   schedule:
     - cron: "4 2 * * 6"
   workflow_dispatch:
-  # `labeled` so that adding `full-ci` to a pull request reruns it in full.
+  # `labeled`/`unlabeled` so that adding or removing a CI label (`full-ci`,
+  # `ci:docs`, `skip-ci:R-CMD-check`) reruns it.
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 name: R-CMD-check
 
@@ -20,18 +21,31 @@ concurrency:
 
 jobs:
   R-CMD-check:
+    # Decided without a runner: `ci:docs` and `skip-ci:R-CMD-check` skip it;
+    # `ci:minimal` still runs it (shared ci.md, Labels).
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+      || !(contains(github.event.pull_request.labels.*.name, 'ci:docs')
+        || contains(github.event.pull_request.labels.*.name, 'skip-ci:R-CMD-check'))
     uses: pedrobtz/r-actions/.github/workflows/r-cmd-check.yml@v1
     with:
-      # Quick on each push to a pull request, full after merge. The
-      # `full-ci` label runs the full set on a pull request before merging.
-      profile: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'full-ci') && 'quick' || 'full' }}
+      # Quick on pull requests. Full on the weekly schedule, on a manual
+      # dispatch, and on a pull request labelled `full-ci`.
+      profile: auto
       # CRAN's noSuggests flavor: every Suggests package must be optional.
       nosuggests: true
+      # CRAN's noLD flavor, checked after acceptance: R-devel without long
+      # doubles. Full profile only.
+      nold: true
       # Depends: R (>= 4.5.0), for tools::sha256sum() (D13). oldrel-1 is
       # R 4.5.x, which meets it, so the oldest supported R has a leg.
+      # Windows R-devel is CRAN's Windows R-devel flavor; nothing else checks
+      # it (the containers are Linux). Full profile only.
       runners: >-
         [{"os": "macos-latest", "r": "release"},
          {"os": "windows-latest", "r": "release"},
+         {"os": "windows-latest", "r": "devel"},
          {"os": "ubuntu-latest", "r": "release"},
          {"os": "ubuntu-latest", "r": "oldrel-1"}]
       # The `containers` and `quick-containers` defaults are the CRAN-like

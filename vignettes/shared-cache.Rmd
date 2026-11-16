@@ -88,7 +88,7 @@ wrong answer.
 
 By default (`durability = "safe"`) every write is on disk before it returns.
 `durability = "fast"` skips waiting for the disk: a crash of the machine can lose recent
-writes, but never damages the cache. `"unsafe"` can damage it, for cachees you can
+writes, but never damages the cache. `"unsafe"` can damage it, for caches you can
 rebuild. The first process to open a cache sets this for every process that opens it
 while it is open; `cache_stats()` reports what is in force.
 
