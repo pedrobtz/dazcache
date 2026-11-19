@@ -1,6 +1,6 @@
 Package: dazcache
 Title: Persistent Disk Cache Shared Between Processes
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R:
     person("Pedro", "Baltazar", , "pedrobtz@gmail.com", role = c("aut", "cre", "cph"))
 Description: A persistent, size-bounded cache that several 'R' processes
