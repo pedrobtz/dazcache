@@ -47,10 +47,10 @@ rates <- cache_memoise(
 
 system.time(rates("CHF", as.Date("2026-10-30")))
 #>    user  system elapsed 
-#>   0.003   0.001   0.506
+#>   0.006   0.001   0.507
 system.time(rates("CHF", as.Date("2026-10-30")))
 #>    user  system elapsed 
-#>   0.001   0.000   0.001
+#>   0.002   0.001   0.001
 calls
 #> [1] 1
 ```
@@ -178,7 +178,7 @@ system.time(fast_square(12))
 #>   0.002   0.000   0.503
 system.time(fast_square(12))
 #>    user  system elapsed 
-#>   0.011   0.000   0.011
+#>   0.015   0.000   0.015
 ```
 
 ``` r

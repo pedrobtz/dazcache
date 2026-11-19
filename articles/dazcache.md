@@ -134,7 +134,7 @@ quotes <- cache_memoise(fetch_quotes, s)
 
 system.time(quotes("XTKS", as.Date("2026-08-29")))
 #>    user  system elapsed 
-#>   0.002   0.000   0.504
+#>   0.002   0.000   0.503
 system.time(quotes("XTKS", as.Date("2026-08-29")))
 #>    user  system elapsed 
 #>   0.001   0.000   0.001
@@ -192,7 +192,7 @@ cache_entries(s)[, c("key", "bytes", "inline", "expires")]
 #> 1                <NA>
 #> 2                <NA>
 #> 3                <NA>
-#> 4 2026-11-16 17:02:54
+#> 4 2026-11-19 15:54:17
 #> 5                <NA>
 #> 6                <NA>
 ```
